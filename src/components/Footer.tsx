@@ -1,3 +1,5 @@
+import Image from 'next/image';
+
 export default function Footer() {
   return (
     <footer style={{ backgroundColor: '#1B5E20' }} className="text-white mt-12">
@@ -5,9 +7,13 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold" style={{ backgroundColor: '#FFD600', color: '#1B5E20' }}>
-                Q
-              </div>
+              <Image
+                src="/logoquetzalmart.jpeg"
+                alt="QuetzalMart"
+                width={36}
+                height={36}
+                className="rounded-full object-cover"
+              />
               <span className="text-lg font-bold">QuetzalMart</span>
             </div>
             <p className="text-green-200 text-sm">

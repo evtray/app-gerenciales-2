@@ -36,10 +36,11 @@ export async function POST(request: NextRequest) {
       // Create sale order in Odoo
       odooOrderId = await createSaleOrder(
         partner.id,
-        items.map((item: { productId: number; quantity: number; price: number }) => ({
+        items.map((item: { productId: number; quantity: number; price: number; name?: string }) => ({
           productId: item.productId,
           quantity: item.quantity,
           price: item.price,
+          name: item.name,
         }))
       );
     } catch (odooError) {

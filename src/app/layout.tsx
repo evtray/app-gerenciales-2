@@ -19,7 +19,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className="h-full antialiased">
-      <head>
+      <body className="min-h-full flex flex-col">
         {GA_MEASUREMENT_ID && (
           <>
             <Script
@@ -36,8 +36,6 @@ export default function RootLayout({
             </Script>
           </>
         )}
-      </head>
-      <body className="min-h-full flex flex-col">
         <CartProvider>
           <Navbar />
           <main className="flex-1">{children}</main>

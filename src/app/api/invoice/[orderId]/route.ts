@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { orders } from '../../checkout/route';
+
+const LOGO_BASE64 = (() => {
+  try {
+    const buf = readFileSync(join(process.cwd(), 'public', 'logoquetzalmart.jpeg'));
+    return `data:image/jpeg;base64,${buf.toString('base64')}`;
+  } catch {
+    return null;
+  }
+})();
 
 export async function GET(
   request: NextRequest,
@@ -22,13 +33,17 @@ export async function GET(
   doc.setFillColor(27, 94, 32);
   doc.rect(0, 0, 210, 35, 'F');
 
-  // Logo circle
-  doc.setFillColor(255, 214, 0);
-  doc.circle(25, 17, 10, 'F');
-  doc.setTextColor(27, 94, 32);
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Q', 22, 21);
+  // Logo
+  if (LOGO_BASE64) {
+    doc.addImage(LOGO_BASE64, 'JPEG', 14, 6, 22, 22);
+  } else {
+    doc.setFillColor(255, 214, 0);
+    doc.circle(25, 17, 10, 'F');
+    doc.setTextColor(27, 94, 32);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Q', 22, 21);
+  }
 
   // Company name
   doc.setTextColor(255, 255, 255);

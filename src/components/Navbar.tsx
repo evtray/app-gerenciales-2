@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useCart } from '@/context/CartContext';
 
 export default function Navbar() {
@@ -10,9 +11,14 @@ export default function Navbar() {
     <nav style={{ backgroundColor: '#1B5E20' }} className="text-white shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold" style={{ backgroundColor: '#FFD600', color: '#1B5E20' }}>
-            Q
-          </div>
+          <Image
+            src="/logoquetzalmart.jpeg"
+            alt="QuetzalMart"
+            width={44}
+            height={44}
+            className="rounded-full object-cover"
+            priority
+          />
           <span className="text-xl font-bold tracking-tight">QuetzalMart</span>
         </Link>
 

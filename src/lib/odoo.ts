@@ -110,9 +110,10 @@ export async function findCustomerByEmail(email: string) {
   return partners.length > 0 ? partners[0] : null;
 }
 
-export async function createSaleOrder(partnerId: number, items: { productId: number; quantity: number; price: number }[]) {
+export async function createSaleOrder(partnerId: number, items: { productId: number; quantity: number; price: number; name?: string }[]) {
   const orderLines = items.map(item => [0, 0, {
     product_template_id: item.productId,
+    name: item.name || `Producto ${item.productId}`,
     product_uom_qty: item.quantity,
     price_unit: item.price,
   }]);
