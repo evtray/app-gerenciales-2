@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import { findCustomerByEmail, createCustomer, createSaleOrder } from '@/lib/odoo';
+import { findCustomerByEmail, createCustomer, createSaleOrder, createWonOpportunity } from '@/lib/odoo';
 
 // In-memory order store for invoice generation
 const orders = new Map<string, Record<string, unknown>>();
@@ -21,16 +21,40 @@ export async function POST(request: NextRequest) {
     // Try to sync with Odoo
     let odooOrderId = null;
     try {
-      // Find or create customer in Odoo CRM
+      // Find or create customer in Odoo
       let partner = await findCustomerByEmail(customer.email);
+      let isNewCustomer = false;
       if (!partner) {
         const partnerId = await createCustomer({
           name: customer.name,
           email: customer.email,
           phone: customer.phone,
           address: customer.address,
+          nit: customer.nit,
         });
         partner = { id: partnerId };
+        isNewCustomer = true;
+      }
+
+      // First-time customers: register a won opportunity in CRM pipeline
+      if (isNewCustomer) {
+        try {
+          const itemsSummary = items
+            .map((it: { name?: string; quantity: number }) => `- ${it.quantity}x ${it.name ?? ''}`)
+            .join('\n');
+          await createWonOpportunity({
+            partnerId: partner.id,
+            customerName: customer.name,
+            email: customer.email,
+            phone: customer.phone,
+            address: customer.address,
+            expectedRevenue: total,
+            transactionId,
+            itemsSummary,
+          });
+        } catch (crmError) {
+          console.error('CRM lead creation failed (non-blocking):', crmError);
+        }
       }
 
       // Create sale order in Odoo

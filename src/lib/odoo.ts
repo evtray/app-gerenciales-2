@@ -91,23 +91,68 @@ export async function getProductById(id: number) {
   };
 }
 
-export async function createCustomer(customer: { name: string; email: string; phone: string; address: string }) {
+export async function createCustomer(customer: { name: string; email: string; phone: string; address: string; nit?: string }) {
+  const vat = customer.nit && customer.nit.trim().toUpperCase() !== 'CF' ? customer.nit.trim() : false;
   const partnerId = await execute('res.partner', 'create', [{
     name: customer.name,
     email: customer.email,
     phone: customer.phone,
+    mobile: customer.phone,
     street: customer.address,
+    vat,
+    company_type: 'person',
     customer_rank: 1,
   }]);
   return partnerId;
 }
 
 export async function findCustomerByEmail(email: string) {
-  const partners = await execute('res.partner', 'search_read', [[['email', '=', email]]], {
+  if (!email || !email.trim()) return null;
+  const partners = await execute('res.partner', 'search_read', [[
+    ['email', '=', email.trim()],
+    ['customer_rank', '>', 0],
+  ]], {
     fields: ['id', 'name', 'email'],
     limit: 1,
   });
   return partners.length > 0 ? partners[0] : null;
+}
+
+export async function createWonOpportunity(opts: {
+  partnerId: number;
+  customerName: string;
+  email: string;
+  phone: string;
+  address: string;
+  expectedRevenue: number;
+  transactionId: string;
+  itemsSummary: string;
+}) {
+  const leadId = await execute('crm.lead', 'create', [{
+    name: `Nuevo cliente web - ${opts.customerName}`,
+    partner_id: opts.partnerId,
+    contact_name: opts.customerName,
+    email_from: opts.email,
+    phone: opts.phone,
+    street: opts.address,
+    expected_revenue: opts.expectedRevenue,
+    probability: 100,
+    type: 'opportunity',
+    description: `Pedido ${opts.transactionId}\n${opts.itemsSummary}`,
+  }]);
+
+  try {
+    await execute('crm.lead', 'action_set_won_rainbowman', [[leadId]]);
+  } catch {
+    // older Odoo versions use action_set_won
+    try {
+      await execute('crm.lead', 'action_set_won', [[leadId]]);
+    } catch {
+      // leave as-is; probability=100 already signals won
+    }
+  }
+
+  return leadId;
 }
 
 export async function createSaleOrder(partnerId: number, items: { productId: number; quantity: number; price: number; name?: string }[]) {
