@@ -1,19 +1,34 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
 import { trackPurchase } from '@/lib/ga4';
 import Link from 'next/link';
 
 export default function CheckoutPage() {
   const { items, subtotal, tax, shipping, total, clearCart } = useCart();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [form, setForm] = useState({
     name: '', email: '', phone: '', address: '', nit: 'CF',
   });
+
+  // Prefill form with user data when logged in
+  useEffect(() => {
+    if (user) {
+      setForm({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        address: user.address || '',
+        nit: user.nit || 'CF',
+      });
+    }
+  }, [user]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -71,6 +86,21 @@ export default function CheckoutPage() {
     }
   };
 
+  // Redirect to login if not authenticated
+  if (!authLoading && !user) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-16 text-center">
+        <p className="text-5xl mb-4">🔒</p>
+        <h2 className="text-2xl font-bold mb-2">Inicia sesión para continuar</h2>
+        <p className="text-gray-500 mb-6">Necesitas una cuenta para completar tu compra</p>
+        <div className="flex gap-4 justify-center">
+          <Link href="/login" className="btn-primary inline-block">Iniciar Sesión</Link>
+          <Link href="/register" className="inline-block px-6 py-2 border-2 rounded-lg font-semibold transition-colors" style={{ borderColor: '#1B5E20', color: '#1B5E20' }}>Crear Cuenta</Link>
+        </div>
+      </div>
+    );
+  }
+
   if (items.length === 0) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-16 text-center">
@@ -89,7 +119,14 @@ export default function CheckoutPage() {
         {/* Customer Form */}
         <div className="md:col-span-2 space-y-6">
           <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="font-bold text-lg mb-4">Datos del Cliente</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-lg">Datos del Cliente</h2>
+              {user && (
+                <span className="text-xs px-2 py-1 rounded-full text-white" style={{ backgroundColor: '#1B5E20' }}>
+                  Datos de tu cuenta
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Nombre completo *</label>
@@ -97,7 +134,7 @@ export default function CheckoutPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Correo electrónico *</label>
-                <input name="email" type="email" value={form.email} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2" />
+                <input name="email" type="email" value={form.email} onChange={handleChange} required readOnly={!!user} className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 ${user ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Teléfono *</label>

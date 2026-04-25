@@ -155,6 +155,111 @@ export async function createWonOpportunity(opts: {
   return leadId;
 }
 
+// --- Auth: portal user registration & login ---
+
+export async function loginUser(email: string, password: string): Promise<{ uid: number; partnerId: number; name: string; email: string } | null> {
+  // Authenticate as the portal user (not admin)
+  const uid = await jsonRpc(`${ODOO_URL}/jsonrpc`, 'login', {
+    service: 'common',
+    args: [ODOO_DB, email, password],
+  });
+  if (!uid) return null;
+
+  // Read user info with admin credentials
+  const users = await execute('res.users', 'search_read', [[['id', '=', uid]]], {
+    fields: ['id', 'name', 'login', 'partner_id'],
+  });
+  if (!users || users.length === 0) return null;
+
+  const user = users[0];
+  return {
+    uid: user.id,
+    partnerId: Array.isArray(user.partner_id) ? user.partner_id[0] : user.partner_id,
+    name: user.name,
+    email: user.login,
+  };
+}
+
+export async function registerPortalUser(data: {
+  name: string;
+  email: string;
+  password: string;
+  phone: string;
+  address: string;
+  nit?: string;
+}): Promise<{ uid: number; partnerId: number }> {
+  // 1. Check if email is already taken
+  const existingUser = await execute('res.users', 'search', [[['login', '=', data.email.trim()]]]);
+  if (existingUser && existingUser.length > 0) {
+    throw new Error('El correo ya está registrado');
+  }
+
+  // 2. Find or create partner
+  let partner = await findCustomerByEmail(data.email);
+  let partnerId: number;
+  if (partner) {
+    partnerId = partner.id;
+  } else {
+    partnerId = await createCustomer({
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      address: data.address,
+      nit: data.nit,
+    });
+  }
+
+  // 3. Get portal group id via XML ID (base.group_portal)
+  let portalGroupId: number;
+  try {
+    const ref = await execute('ir.model.data', 'search_read', [[
+      ['module', '=', 'base'],
+      ['name', '=', 'group_portal'],
+    ]], { fields: ['res_id'], limit: 1 });
+    if (ref && ref.length > 0) {
+      portalGroupId = ref[0].res_id;
+    } else {
+      throw new Error('not found via ir.model.data');
+    }
+  } catch {
+    // Fallback: search by any matching name
+    const portalGroups = await execute('res.groups', 'search_read', [[
+      ['full_name', 'ilike', 'portal'],
+    ]], { fields: ['id'], limit: 1 });
+    if (!portalGroups || portalGroups.length === 0) {
+      throw new Error('Grupo portal no encontrado en Odoo');
+    }
+    portalGroupId = portalGroups[0].id;
+  }
+
+  // 4. Create portal user linked to partner
+  const userId = await execute('res.users', 'create', [{
+    partner_id: partnerId,
+    login: data.email.trim(),
+    password: data.password,
+    name: data.name,
+    groups_id: [[6, 0, [portalGroupId]]],
+  }]);
+
+  return { uid: userId, partnerId };
+}
+
+export async function getPartnerInfo(partnerId: number) {
+  const partners = await execute('res.partner', 'search_read', [[['id', '=', partnerId]]], {
+    fields: ['id', 'name', 'email', 'phone', 'street', 'vat'],
+  });
+  if (!partners || partners.length === 0) return null;
+  const p = partners[0];
+  return {
+    id: p.id,
+    name: p.name || '',
+    email: p.email || '',
+    phone: p.phone || '',
+    address: p.street || '',
+    nit: p.vat || 'CF',
+  };
+}
+
 export async function createSaleOrder(partnerId: number, items: { productId: number; quantity: number; price: number; name?: string }[]) {
   const orderLines = items.map(item => [0, 0, {
     product_template_id: item.productId,
